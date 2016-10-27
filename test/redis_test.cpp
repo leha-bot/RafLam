@@ -145,7 +145,7 @@ TEST(ReadRedisValue, Int) {
         reader->input = ":-9999999999999999999\r\n";
         ReadRedisValue(reader, val);
     } catch (std::invalid_argument &e) {
-        EXPECT_STREQ(e.what(), "overflow integer");
+        EXPECT_STREQ(e.what(), "Integer overflow");
     } catch (...) {
         FAIL() << "Expected std::invalid_argument of overflow integer";
     }
