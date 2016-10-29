@@ -1,7 +1,7 @@
 #include "redis.h"
 
 
-void WriteRedisValue(Writer_ptr w, const RedisValue& value) {
+void protocol::WriteRedisValue(protocol::Writer_ptr w, const RedisValue& value) {
     if (value.which() == REDIS_INT) {
         w->write_char(':');
         w->write_int(boost::get<int64_t>(value));
@@ -48,7 +48,7 @@ void WriteRedisValue(Writer_ptr w, const RedisValue& value) {
 }
 
 
-void ReadRedisValue(Reader_ptr r, RedisValue& value) {
+void protocol::ReadRedisValue(protocol::Reader_ptr r, RedisValue& value) {
     switch(r->read_char()) {
         case ':': {
             value = r->read_int();

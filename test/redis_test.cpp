@@ -25,7 +25,7 @@ TEST(RedisValue, Construct) {
 TEST(WriteRedisValue, Int) {
     std::shared_ptr<StringWriter> writer(new StringWriter(1024));
     RedisValue i = 10;
-    WriteRedisValue(writer, i);
+    protocol::WriteRedisValue(writer, i);
     writer->flush();
 
 
@@ -33,21 +33,21 @@ TEST(WriteRedisValue, Int) {
 
     writer->result.clear();
     RedisValue j = -5;
-    WriteRedisValue(writer, j);
+    protocol::WriteRedisValue(writer, j);
     writer->flush();
 
     EXPECT_STREQ(":-5\r\n", writer->result.c_str());
 
     writer->result.clear();
     RedisValue max = 9223372036854775807;
-    WriteRedisValue(writer, max);
+    protocol::WriteRedisValue(writer, max);
     writer->flush();
 
     EXPECT_STREQ(":9223372036854775807\r\n", writer->result.c_str());
 
     writer->result.clear();
     RedisValue min = -9223372036854775807;
-    WriteRedisValue(writer, min);
+    protocol::WriteRedisValue(writer, min);
     writer->flush();
 
     EXPECT_STREQ(":-9223372036854775807\r\n", writer->result.c_str());
@@ -56,14 +56,14 @@ TEST(WriteRedisValue, Int) {
 TEST(WriteRedisValue, String) {
     std::shared_ptr<StringWriter> writer(new StringWriter(1024));
     RedisValue str = "abcd";
-    WriteRedisValue(writer, str);
+    protocol::WriteRedisValue(writer, str);
     writer->flush();
 
     EXPECT_STREQ("+abcd\r\n", writer->result.c_str());
 
     writer->result.clear();
     str = "123";
-    WriteRedisValue(writer, str);
+    protocol::WriteRedisValue(writer, str);
     writer->flush();
 
     EXPECT_STREQ("+123\r\n", writer->result.c_str());
@@ -72,7 +72,7 @@ TEST(WriteRedisValue, String) {
 TEST(WriteRedisValue, Error) {
     std::shared_ptr<StringWriter> writer(new StringWriter(1024));
     RedisValue str = RedisError("Error message");
-    WriteRedisValue(writer, str);
+    protocol::WriteRedisValue(writer, str);
     writer->flush();
 
     EXPECT_STREQ("-Error message\r\n", writer->result.c_str());
@@ -81,7 +81,7 @@ TEST(WriteRedisValue, Error) {
 TEST(WriteRedisValue, Null) {
     std::shared_ptr<StringWriter> writer(new StringWriter(1024));
     RedisValue null = RedisNull();
-    WriteRedisValue(writer, null);
+    protocol::WriteRedisValue(writer, null);
     writer->flush();
 
     EXPECT_STREQ("$-1\r\n", writer->result.c_str());
@@ -95,7 +95,7 @@ TEST(WriteRedisValue, Array) {
     RedisValue null = RedisNull();
 
     RedisValue array = std::vector<RedisValue>{integer, string, error, null};
-    WriteRedisValue(writer, array);
+    protocol::WriteRedisValue(writer, array);
     writer->flush();
 
     EXPECT_STREQ("*4\r\n:10\r\n+abcd\r\n-Permission denied\r\n$-1\r\n", writer->result.c_str());
@@ -105,7 +105,7 @@ TEST(WriteRedisValue, BulkString) {
     std::shared_ptr<StringWriter> writer(new StringWriter(1024));
 
     RedisValue bulk = RedisBulkString("\t\r\n");
-    WriteRedisValue(writer, bulk);
+    protocol::WriteRedisValue(writer, bulk);
     writer->flush();
 
     EXPECT_STREQ("$3\r\n\t\r\n\r\n", writer->result.c_str());
@@ -115,7 +115,7 @@ TEST(WriteRedisValue, BufOverflow) {
     std::shared_ptr<StringWriter> writer(new StringWriter(3));
 
     RedisValue data = RedisBulkString("123456");
-    WriteRedisValue(writer, data);
+    protocol::WriteRedisValue(writer, data);
 
     EXPECT_STREQ("$6\r\n123456\r\n", writer->result.c_str());
 }
@@ -126,26 +126,26 @@ TEST(ReadRedisValue, Int) {
     std::shared_ptr<StringReader> reader(new StringReader());
 
     reader->input = ":10\r\n";
-    ReadRedisValue(reader, val);
+    protocol::ReadRedisValue(reader, val);
     EXPECT_EQ(10, boost::get<int64_t>(val));
 
     reader->input = ":-5\r\n";
-    ReadRedisValue(reader, val);
+    protocol::ReadRedisValue(reader, val);
     EXPECT_EQ(-5, boost::get<int64_t>(val));
 
     reader->input = ":9223372036854775807\r\n";
-    ReadRedisValue(reader, val);
+    protocol::ReadRedisValue(reader, val);
     EXPECT_EQ(9223372036854775807, boost::get<int64_t>(val));
 
     reader->input = ":-9223372036854775807\r\n";
-    ReadRedisValue(reader, val);
+    protocol::ReadRedisValue(reader, val);
     EXPECT_EQ(-9223372036854775807, boost::get<int64_t>(val));
 
     try {
         reader->input = ":-9999999999999999999\r\n";
-        ReadRedisValue(reader, val);
+        protocol::ReadRedisValue(reader, val);
     } catch (std::invalid_argument &e) {
-        EXPECT_STREQ(e.what(), "Integer overflow");
+        EXPECT_STREQ(e.what(), "Redis-protocol: Integer overflow");
     } catch (...) {
         FAIL() << "Expected std::invalid_argument of overflow integer";
     }
@@ -156,7 +156,7 @@ TEST(ReadRedisValue, Null) {
     std::shared_ptr<StringReader> reader(new StringReader());
 
     reader->input = "$-1\r\n";
-    ReadRedisValue(reader, val);
+    protocol::ReadRedisValue(reader, val);
     EXPECT_EQ(REDIS_NULL, val.which());
 }
 
@@ -165,7 +165,7 @@ TEST(ReadRedisValue, String) {
     std::shared_ptr<StringReader> reader(new StringReader());
 
     reader->input = "+OK\r\n";
-    ReadRedisValue(reader, val);
+    protocol::ReadRedisValue(reader, val);
     EXPECT_STREQ("OK", boost::get<std::string>(val).c_str());
 }
 
@@ -174,11 +174,11 @@ TEST(ReadRedisValue, Error) {
     std::shared_ptr<StringReader> reader(new StringReader());
 
     reader->input = "-Error message\r\n";
-    ReadRedisValue(reader, val);
+    protocol::ReadRedisValue(reader, val);
     EXPECT_STREQ("Error message", boost::get<RedisError>(val).msg.c_str());
 
     reader->input = "-123\r\n";
-    ReadRedisValue(reader, val);
+    protocol::ReadRedisValue(reader, val);
     EXPECT_STREQ("123", boost::get<RedisError>(val).msg.c_str());
 }
 
@@ -187,7 +187,7 @@ TEST(ReadRedisValue, Array) {
     std::shared_ptr<StringReader> reader(new StringReader());
 
     reader->input = "*4\r\n:10\r\n+abcd\r\n-Permission denied\r\n$-1\r\n";
-    ReadRedisValue(reader, val);
+    protocol::ReadRedisValue(reader, val);
     EXPECT_EQ(10, boost::get<int64_t>(boost::get<std::vector<RedisValue>>(val)[0]));
     EXPECT_STREQ("abcd", boost::get<std::string>(boost::get<std::vector<RedisValue>>(val)[1]).c_str());
     EXPECT_STREQ("Permission denied", boost::get<RedisError>(boost::get<std::vector<RedisValue>>(val)[2]).msg.c_str());
@@ -200,11 +200,11 @@ TEST(ReadRedisValue, BulkString) {
     std::shared_ptr<StringReader> reader(new StringReader());
 
     reader->input = "$3\r\n\t\r\n\r\n";
-    ReadRedisValue(reader, val);
+    protocol::ReadRedisValue(reader, val);
     EXPECT_STREQ("\t\r\n", boost::get<RedisBulkString>(val).data.c_str());
 
     reader->input = "$0\r\n\r\n";
-    ReadRedisValue(reader, val);
+    protocol::ReadRedisValue(reader, val);
     EXPECT_STREQ("", boost::get<RedisBulkString>(val).data.c_str());
 }
 
@@ -230,10 +230,10 @@ TEST(RedisServer, Socket) {
     RedisValue null = RedisNull();
     RedisValue array = std::vector<RedisValue>{integer, string, error, null};
 
-    WriteRedisValue(writer, array);
+    protocol::WriteRedisValue(writer, array);
     writer->flush();
     RedisValue val;
-    ReadRedisValue(reader, val);
+    protocol::ReadRedisValue(reader, val);
 
     EXPECT_EQ(10, boost::get<int64_t>(boost::get<std::vector<RedisValue>>(val)[0]));
     EXPECT_STREQ("abcd", boost::get<std::string>(boost::get<std::vector<RedisValue>>(val)[1]).c_str());

@@ -45,8 +45,11 @@ enum RedisType {
     REDIS_ARRAY
 };
 
-typedef std::shared_ptr<Reader> Reader_ptr;
-typedef std::shared_ptr<Writer> Writer_ptr;
+namespace protocol {
+    typedef std::shared_ptr<Reader> Reader_ptr;
+    typedef std::shared_ptr<Writer> Writer_ptr;
 
-void WriteRedisValue(Writer_ptr w, const RedisValue& value);
-void ReadRedisValue(Reader_ptr r, RedisValue& value);
+    void WriteRedisValue(Writer_ptr w, const RedisValue &value);
+
+    void ReadRedisValue(Reader_ptr r, RedisValue &value);
+}
