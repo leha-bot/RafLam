@@ -43,7 +43,7 @@ void WriteRedisValue(Writer_ptr w, const RedisValue& value) {
         w->write_crlf();
 
     } else {
-        throw std::runtime_error("Unsupported type");
+        throw std::runtime_error("Redis-protocol: Unsupported type");
     }
 }
 
@@ -83,6 +83,6 @@ void ReadRedisValue(Reader_ptr r, RedisValue& value) {
             break;
 
         } default:
-            throw std::runtime_error("Invalid redis value");
+            throw std::runtime_error("Redis-protocol: Invalid redis value");
     }
 }

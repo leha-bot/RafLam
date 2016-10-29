@@ -21,16 +21,16 @@ int64_t Reader::read_int() {
 
     do {
         if (__builtin_smull_overflow(i, 10, &i)) {
-            throw std::invalid_argument("Integer overflow");
+            throw std::invalid_argument("Redis-protocol: Integer overflow");
         }
         if (__builtin_saddl_overflow(i, next - '0', &i)) {
-            throw std::invalid_argument("Integer overflow");
+            throw std::invalid_argument("Redis-protocol: Integer overflow");
         }
         next = read_char();
     } while(next != '\r' && ++ch < 21);
 
     if (ch > 19) {
-        throw std::invalid_argument("Not integer");
+        throw std::invalid_argument("Redis-protocol: Not integer");
     }
     read_char(); // skip '\n'
 
@@ -47,7 +47,7 @@ std::string Reader::read_line() {
     }
 
     if (lenght > MAX_LENGHT_STRING) {
-        throw std::invalid_argument("Too large raw_string");
+        throw std::invalid_argument("Redis-protocol: Too large raw_string");
     }
     read_char(); // skip '\n'
     return out;
@@ -55,7 +55,7 @@ std::string Reader::read_line() {
 
 std::string Reader::read_raw(size_t len) {
     if (len > MAX_LENGHT_ARRAY) {
-        throw std::invalid_argument("Too large raw_string");
+        throw std::invalid_argument("Redis-protocol: Too large raw_string");
     }
 
     std::string out;
@@ -71,7 +71,7 @@ std::string Reader::read_raw(size_t len) {
 }
 
 void StringReader::read_more() {
-    if (input.empty()) throw std::runtime_error("End of input");
+    if (input.empty()) throw std::runtime_error("Redis-protocol: End of input");
 
     end_ = 0;
     rpos_ = 0;

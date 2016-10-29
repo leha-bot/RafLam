@@ -14,7 +14,7 @@ void Writer::write_int(int64_t i) {
 
 void Writer::write_raw(const char* s, uint64_t len) {
     if (len > MAX_LENGHT_ROWSTRING) {
-        throw std::invalid_argument("Too large raw_string");
+        throw std::invalid_argument("Redis-protocol: Too large raw_string");
     }
 
     for(int i = 0; i < len; ) {
@@ -41,7 +41,7 @@ void Writer::write_crlf() {
 
 void Writer::write_string(const std::string &s) {
     if (s.size() > MAX_LENGHT_STRING) {
-        throw std::invalid_argument("Too large row string");
+        throw std::invalid_argument("Redis-protocol: Too large row string");
     }
     write_raw(s.data(), s.size());
 }
