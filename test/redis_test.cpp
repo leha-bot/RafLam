@@ -4,9 +4,8 @@
 
 #include "../contrib/gtest/gtest.h"
 #include "../protocol/redis.h"
-/*#include "../server/Server.h"
-#include "../server/Storage.h"
-#include "../server/Commands.h"*/
+
+#include "../rpc/marshaling.h"
 
 
 using boost::asio::ip::tcp;
@@ -241,121 +240,61 @@ TEST(RedisServer, Socket) {
     EXPECT_EQ(REDIS_NULL, boost::get<std::vector<RedisValue>>(val)[3].which());
 }
 
-//TEST(WriteRedisValue, Socket) {
-//    int fd[2];
-//    socketpair(AF_UNIX, SOCK_STREAM, 0, fd);
+TEST(Marshaling, convert_int) {
+    std::shared_ptr<StringWriter> writer(new StringWriter(1024));
+    RedisValue out;
+
+    std::string f_str = "f";
+
+    int i = 10;
+    auto m =  Marshaling<int>(writer, f_str, 1);
+    m.convert<int>(i, out);
+
+    protocol::WriteRedisValue(writer, out);
+    writer->flush();
+
+    EXPECT_STREQ(":10\r\n", writer->result.c_str());
+}
+
+TEST(Marshaling, convert_string) {
+    std::shared_ptr<StringWriter> writer(new StringWriter(1024));
+    RedisValue out;
+
+    std::string f_str = "f";
+
+    std::string str = "abcd";
+    auto n =  Marshaling<int>(writer, f_str, 1);
+    n.convert<std::string>(str, out);
+
+    protocol::WriteRedisValue(writer, out);
+    writer->flush();
+
+    EXPECT_STREQ("+abcd\r\n", writer->result.c_str());
+}
+
+//TEST(Marshaling, convert_exception) { TODO: Доделать тест
 //
-//    OldSocketWriter writer(fd[0], 1024);
-//    OldSocketReader reader(fd[1], 41);
-//
-//    RedisValue integer = 10;
-//    RedisValue string = "abcd";
-//    RedisValue error = RedisError("Permission denied");
-//    RedisValue null = RedisNull();
-//    RedisValue array = std::vector<RedisValue>{integer, string, error, null};
-//
-//    WriteRedisValue(&writer, array);
-//    writer.flush();
-//    RedisValue val;
-//    ReadRedisValue(&reader, &val);
-//
-//    EXPECT_EQ(10, boost::get<int64_t>(boost::get<std::vector<RedisValue>>(val)[0]));
-//    EXPECT_STREQ("abcd", boost::get<std::string>(boost::get<std::vector<RedisValue>>(val)[1]).c_str());
-//    EXPECT_STREQ("Permission denied", boost::get<RedisError>(boost::get<std::vector<RedisValue>>(val)[2]).msg.c_str());
-//    EXPECT_EQ(REDIS_NULL, boost::get<std::vector<RedisValue>>(val)[3].which());
 //}
 
-/*
+TEST(Marshaling, compose_request) {
+    std::shared_ptr<StringWriter> writer(new StringWriter(1024));
 
-TEST(RedisServer, AcceptConnection) {
-    TestServer s(6376, 1);
+    std::string f_str = "f";
+    auto n =  Marshaling<int>(writer, f_str, 1);
+    n.compose_request(24);
 
-    std::thread t([&] {
-        s.serve();
-    });
-
-    LocalSocket soccli1;
-    soccli1.connect_(6376);
-
-    t.join();
-
-    ASSERT_EQ(1, s.countConn_);
+    writer->flush();
+    EXPECT_STREQ("+redis-rpc\r\n:1\r\n+id\r\n:24\r\n+method\r\n+f\r\n:1\r\n", writer->result.c_str());
 }
 
+TEST(Marshaling, compose_response) {
+    std::shared_ptr<StringWriter> writer(new StringWriter(1024));
 
-TEST(RedisServer, ReadData) {
-    TestServer s(6376, 1);
-    char inp[4];
-    std::thread t([&] {
-        s.serve();
-        s.out_->getData(inp, 3);
-    });
+    std::string f_str = "2918273";
+    auto n =  Marshaling<int>(writer, f_str);
+    n.compose_response(24);
 
-    LocalSocket soccli;
-    soccli.connect_(6376);
-    soccli.write_(std::string("abc"));
-
-    t.join();
-
-    ASSERT_STREQ("abc", inp);
+    writer->flush();
+    EXPECT_STREQ("+redis-rpc\r\n:1\r\n+id\r\n:24\r\n+result\r\n+2918273\r\n", writer->result.c_str());
 }
 
-
-TEST(RedisServer, WriteData) {
-    TestServer s(6376, 1);
-    std::string * inp;
-
-    std::thread t([&] {
-        s.serve();
-        char str[] = "abc";
-        s.out_->sendData(str, 3);
-    });
-
-    LocalSocket soccli;
-    soccli.connect_(6376);
-    inp = soccli.read_(3);
-
-    t.join();
-
-    ASSERT_STREQ("abc", inp->c_str());
-}
-
-
-TEST(RedisStorage, Set) {
-    Storage table;
-    Set s(&table);
-    RedisValue cmd = RedisBulkString("SET");
-    RedisValue key = RedisBulkString("a");
-    RedisValue value = RedisBulkString("b");
-    RedisValue val = std::vector<RedisValue> {cmd, key, value};
-
-    RedisValue result = s.exec(val);
-    EXPECT_EQ(SET, s.name());
-    EXPECT_STREQ("b", table.getPtrOfStorage()->operator[]("a").c_str());
-    EXPECT_STREQ("OK", boost::get<std::string>(result).c_str());
-
-    key = RedisBulkString("b");
-    value = RedisBulkString("abc");
-    val = std::vector<RedisValue> {cmd, key, value};
-
-    result = s.exec(val);
-    EXPECT_STREQ("abc", table.getPtrOfStorage()->operator[]("b").c_str());
-    EXPECT_STREQ("OK", boost::get<std::string>(result).c_str());
-}
-
-
-TEST(RedisStorage, Get) {
-    Storage table;
-
-    table.getPtrOfStorage()->operator[]("a") = "b";
-
-    Get g(&table);
-    RedisValue cmd = RedisBulkString("GET");
-    RedisValue key = RedisBulkString("a");
-    RedisValue val = std::vector<RedisValue> {cmd, key};
-
-    RedisValue result = g.exec(val);
-
-    EXPECT_EQ(GET, g.name());
-    EXPECT_STREQ("b", boost::get<RedisBulkString>(result).data.c_str());
-}*/

@@ -10,16 +10,13 @@ add_library(redis
         protocol/redis.cpp
         protocol/reader.cpp
         protocol/writer.cpp)
-#[[        server/Socket.cpp
-        server/Commands.cpp
-        server/Listener.cpp
-        server/Server.cpp
-        server/Storage.cpp)]]
 
-add_executable(redis-server
-        main.cpp
-)
-target_link_libraries(redis-server redis pthread)
+add_library(rpc
+        rpc/marshaling.h rpc/unmarshaling.h)
+
+add_executable(main
+        main.cpp)
+target_link_libraries(rpc redis pthread)
 
 include_directories(contrib)
 
@@ -28,4 +25,4 @@ add_executable(run_test
         contrib/gmock_main.cc
         test/redis_test.cpp
 )
-target_link_libraries(run_test redis pthread)
+target_link_libraries(run_test redis rpc pthread)
