@@ -1,0 +1,8 @@
+//
+// Created by fahreevr on 30.10.16.
+//
+
+#ifndef REDIS3000_UNMARSHALING_H
+#define REDIS3000_UNMARSHALING_H
+
+#endif //REDIS3000_UNMARSHALING_H
